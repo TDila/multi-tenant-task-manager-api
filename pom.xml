@@ -9,9 +9,9 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.tdila</groupId>
-	<artifactId>taskmanager</artifactId>
+	<artifactId>multi-tenant-task-manager-api</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>taskmanager</name>
+	<name>multi-tenant-task-manager-api</name>
 	<description>A multi-tenant task management REST API with JWT authentication, role-based access, and tenant-isolated data.</description>
 	<url/>
 	<licenses>
@@ -59,7 +59,7 @@
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
-			<optional>true</optional>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -90,14 +90,6 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
-				<configuration>
-					<excludes>
-						<exclude>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-						</exclude>
-					</excludes>
-				</configuration>
 			</plugin>
 		</plugins>
 	</build>
