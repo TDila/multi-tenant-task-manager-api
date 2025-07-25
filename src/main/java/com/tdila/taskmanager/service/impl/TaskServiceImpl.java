@@ -1,19 +1,17 @@
 package com.tdila.taskmanager.service.impl;
 
-import com.tdila.taskmanager.dto.TaskCreateRequestDTO;
-import com.tdila.taskmanager.dto.TaskResponseDTO;
-import com.tdila.taskmanager.dto.TaskStatusUpdateRequestDTO;
+import com.tdila.taskmanager.dto.*;
 import com.tdila.taskmanager.entity.Task;
 import com.tdila.taskmanager.entity.TaskStatus;
 import com.tdila.taskmanager.entity.User;
 import com.tdila.taskmanager.repository.TaskRepository;
 import com.tdila.taskmanager.repository.UserRepository;
 import com.tdila.taskmanager.service.TaskService;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
@@ -103,6 +101,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
+    @Transactional
     public TaskResponseDTO updateTaskStatus(String taskId, TaskStatusUpdateRequestDTO request) {
         UUID id = UUID.fromString(taskId);
 
@@ -131,5 +130,96 @@ public class TaskServiceImpl implements TaskService {
                         .map(User::getId)
                         .toList())
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public TaskResponseDTO updateTaskCollaborators(String taskId, TaskCollaboratorUpdateDTO request) {
+        UUID id = UUID.fromString(taskId);
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+
+        String currentEmail = getCurrentUserEmail();
+        User user = userRepository.findByEmail(currentEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if(!task.getCreator().equals(user)){
+            throw new RuntimeException("Only the creator can update collaborators");
+        }
+
+        Set<User> collaborators = request.getCollaboratorIds().stream()
+                .map(uuid -> userRepository.findById(uuid)
+                        .orElseThrow(() -> new RuntimeException("User not found: "+uuid)))
+                .collect(Collectors.toSet());
+
+        task.setCollaborators(collaborators);
+        taskRepository.save(task);
+
+        return TaskResponseDTO.builder()
+                .id(task.getId())
+                .title(task.getTitle())
+                .description(task.getDescription())
+                .status(task.getStatus())
+                .creatorId(task.getCreator().getId())
+                .organizationId(task.getOrganization().getId())
+                .collaboratorIds(task.getCollaborators().stream()
+                        .map(User::getId)
+                        .toList())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public TaskResponseDTO updateTaskDetails(String taskId, TaskUpdateRequestDTO request) {
+        UUID id = UUID.fromString(taskId);
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+
+        String currentEmail = getCurrentUserEmail();
+        User user = userRepository.findByEmail(currentEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if(!task.getCreator().equals(user)){
+            throw new RuntimeException("Only the creator can update the task details");
+        }
+
+        if(request.getTitle() != null && !request.getTitle().isBlank()){
+            task.setTitle(request.getTitle());
+        }
+
+        if(request.getDescription() != null){
+            task.setDescription(request.getDescription());
+        }
+
+        taskRepository.save(task);
+
+        return TaskResponseDTO.builder()
+                .id(task.getId())
+                .title(task.getTitle())
+                .description(task.getDescription())
+                .status(task.getStatus())
+                .creatorId(task.getCreator().getId())
+                .organizationId(task.getOrganization().getId())
+                .collaboratorIds(task.getCollaborators().stream()
+                        .map(User::getId)
+                        .toList())
+                .build();
+    }
+
+    @Override
+    public void deleteTask(String taskId) {
+        UUID id = UUID.fromString(taskId);
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+
+        String currentEmail = getCurrentUserEmail();
+        User user = userRepository.findByEmail(currentEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if(!task.getCreator().equals(user)){
+            throw new RuntimeException("Only the creator can delete this task");
+        }
+
+        taskRepository.delete(task);
     }
 }

@@ -35,10 +35,6 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tenant_id")
-    private Tenant tenant;
-
     @ManyToOne
     @JoinColumn(name = "organization_id")
     private Organization organization;

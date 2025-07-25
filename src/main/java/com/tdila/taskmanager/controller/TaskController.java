@@ -1,8 +1,6 @@
 package com.tdila.taskmanager.controller;
 
-import com.tdila.taskmanager.dto.TaskCreateRequestDTO;
-import com.tdila.taskmanager.dto.TaskResponseDTO;
-import com.tdila.taskmanager.dto.TaskStatusUpdateRequestDTO;
+import com.tdila.taskmanager.dto.*;
 import com.tdila.taskmanager.service.TaskService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -35,5 +33,29 @@ public class TaskController {
             ){
         TaskResponseDTO response = taskService.updateTaskStatus(taskId, request);
         return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{taskId}/collaborators")
+    public ResponseEntity<TaskResponseDTO> updateTaskCollaborators(
+            @PathVariable String taskId,
+            @RequestBody TaskCollaboratorUpdateDTO request
+            ){
+        TaskResponseDTO response = taskService.updateTaskCollaborators(taskId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{taskId}")
+    public ResponseEntity<TaskResponseDTO> updateTaskDetails(
+            @PathVariable String taskId,
+            @RequestBody TaskUpdateRequestDTO request
+            ){
+        TaskResponseDTO response = taskService.updateTaskDetails(taskId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{taskId}")
+    public ResponseEntity<?> deleteTask(@PathVariable String taskId){
+        taskService.deleteTask(taskId);
+        return ResponseEntity.noContent().build();
     }
 }
