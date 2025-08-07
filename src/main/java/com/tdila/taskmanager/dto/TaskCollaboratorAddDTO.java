@@ -2,6 +2,7 @@ package com.tdila.taskmanager.dto;
 
 import lombok.*;
 
+import java.util.Set;
 import java.util.UUID;
 
 @Getter
@@ -9,7 +10,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class OrganizationResponseDTO {
-    private UUID id;
-    private String name;
+public class TaskCollaboratorAddDTO {
+    private Set<UUID> collaboratorIds;
 }

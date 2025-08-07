@@ -1,5 +1,6 @@
 package com.tdila.taskmanager.entity;
 
 public enum Role {
-    ADMIN, MEMBER
+    SYSTEM_USER,
+    TENANT_ADMIN
 }

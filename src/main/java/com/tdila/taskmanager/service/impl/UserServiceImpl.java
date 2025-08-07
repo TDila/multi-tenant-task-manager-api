@@ -1,6 +1,7 @@
 package com.tdila.taskmanager.service.impl;
 
 import com.tdila.taskmanager.dto.UserRegisterRequestDTO;
+import com.tdila.taskmanager.entity.Role;
 import com.tdila.taskmanager.entity.User;
 import com.tdila.taskmanager.repository.UserRepository;
 import com.tdila.taskmanager.service.UserService;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+
     @Override
     public void registerUser(UserRegisterRequestDTO request) {
         if(!request.getPassword().equals(request.getConfirmPassword())){
@@ -28,8 +30,7 @@ public class UserServiceImpl implements UserService {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .phoneNumber(request.getPhoneNumber())
-                .tenant(null)
-                .role(null)
+                .role(Role.SYSTEM_USER)
                 .build();
 
         userRepository.save(user);

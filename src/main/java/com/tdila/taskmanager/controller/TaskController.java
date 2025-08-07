@@ -35,13 +35,18 @@ public class TaskController {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/{taskId}/collaborators")
-    public ResponseEntity<TaskResponseDTO> updateTaskCollaborators(
+    @PostMapping("/{taskId}/collaborators")
+    public ResponseEntity<TaskResponseDTO> addCollaborators(
             @PathVariable String taskId,
-            @RequestBody TaskCollaboratorUpdateDTO request
-            ){
-        TaskResponseDTO response = taskService.updateTaskCollaborators(taskId, request);
-        return ResponseEntity.ok(response);
+            @RequestBody TaskCollaboratorAddDTO request) {
+        return ResponseEntity.ok(taskService.addCollaborators(taskId, request));
+    }
+
+    @DeleteMapping("/{taskId}/collaborators")
+    public ResponseEntity<TaskResponseDTO> removeCollaborators(
+            @PathVariable String taskId,
+            @RequestBody TaskCollaboratorRemoveDTO request) {
+        return ResponseEntity.ok(taskService.removeCollaborators(taskId, request));
     }
 
     @PutMapping("/{taskId}")

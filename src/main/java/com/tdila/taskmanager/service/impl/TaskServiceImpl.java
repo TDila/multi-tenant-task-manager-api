@@ -13,10 +13,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,11 +29,20 @@ public class TaskServiceImpl implements TaskService {
         User creator = userRepository.findByEmail(creatorEmail)
                 .orElseThrow(() -> new RuntimeException("Creator not found"));
 
+        if (creator.getTenant() == null) {
+            throw new RuntimeException("You must join a tenant before creating tasks.");
+        }
+
         Set<User> collaborators = new HashSet<>();
-        if(request.getCollaboratorIds() != null){
+        if (request.getCollaboratorIds() != null) {
             collaborators = request.getCollaboratorIds().stream()
                     .map(id -> userRepository.findById(id)
-                            .orElseThrow(() -> new RuntimeException("Collaborator not found: "+id)))
+                            .orElseThrow(() -> new RuntimeException("Collaborator not found: " + id)))
+                    .peek(user -> {
+                        if (user.getTenant() == null || !user.getTenant().getId().equals(creator.getTenant().getId())) {
+                            throw new RuntimeException("Collaborator must belong to the same tenant.");
+                        }
+                    })
                     .collect(Collectors.toSet());
         }
 
@@ -45,7 +51,7 @@ public class TaskServiceImpl implements TaskService {
                 .description(request.getDescription())
                 .status(TaskStatus.TODO)
                 .creator(creator)
-                .organization(creator.getOrganization())
+                .tenant(creator.getTenant())
                 .collaborators(collaborators)
                 .build();
 
@@ -57,12 +63,13 @@ public class TaskServiceImpl implements TaskService {
                 .description(savedTask.getDescription())
                 .status(savedTask.getStatus())
                 .creatorId(savedTask.getCreator().getId())
-                .organizationId(savedTask.getOrganization().getId())
+                .tenantId(savedTask.getTenant().getId())
                 .collaboratorIds(savedTask.getCollaborators().stream()
                         .map(User::getId)
-                        .collect(Collectors.toList()))
+                        .collect(Collectors.toSet()))
                 .build();
     }
+
 
     private String getCurrentUserEmail(){
         Object principal = SecurityContextHolder.getContext()
@@ -74,6 +81,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
+    @Transactional
     public List<TaskResponseDTO> getAllTasksForCurrentUser() {
         String userEmail = getCurrentUserEmail();
         User user = userRepository.findByEmail(userEmail)
@@ -86,17 +94,17 @@ public class TaskServiceImpl implements TaskService {
         Set<Task> allTasks = new HashSet<>();
         allTasks.addAll(createdTasks);
         allTasks.addAll(assignedTasks);
-
+        System.out.println("add tasks: "+allTasks);
         return allTasks.stream().map(task -> TaskResponseDTO.builder()
                 .id(task.getId())
                 .title(task.getTitle())
                 .description(task.getDescription())
                 .status(task.getStatus())
                 .creatorId(task.getCreator().getId())
-                .organizationId(task.getOrganization().getId())
+                .tenantId(task.getTenant().getId())
                 .collaboratorIds(task.getCollaborators().stream()
                         .map(User::getId)
-                        .collect(Collectors.toList()))
+                        .collect(Collectors.toSet()))
                 .build()).toList();
     }
 
@@ -112,8 +120,8 @@ public class TaskServiceImpl implements TaskService {
         User user = userRepository.findByEmail(currentUserEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if(!task.getCreator().equals(user) && !task.getCollaborators().contains(user)){
-            throw new RuntimeException("You are not allowed to update this task");
+        if (!task.getCreator().equals(user)) {
+            throw new RuntimeException("Only the task creator can update the task status.");
         }
 
         task.setStatus(request.getStatus());
@@ -125,48 +133,96 @@ public class TaskServiceImpl implements TaskService {
                 .description(task.getDescription())
                 .status(task.getStatus())
                 .creatorId(task.getCreator().getId())
-                .organizationId(task.getOrganization().getId())
+                .tenantId(task.getTenant().getId())
                 .collaboratorIds(task.getCollaborators().stream()
                         .map(User::getId)
-                        .toList())
+                        .collect(Collectors.toSet()))
                 .build();
     }
 
     @Override
     @Transactional
-    public TaskResponseDTO updateTaskCollaborators(String taskId, TaskCollaboratorUpdateDTO request) {
+    public TaskResponseDTO addCollaborators(String taskId, TaskCollaboratorAddDTO request) {
         UUID id = UUID.fromString(taskId);
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
 
-        String currentEmail = getCurrentUserEmail();
-        User user = userRepository.findByEmail(currentEmail)
+        User currentUser = userRepository.findByEmail(getCurrentUserEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if(!task.getCreator().equals(user)){
-            throw new RuntimeException("Only the creator can update collaborators");
+        if (!task.getCreator().equals(currentUser)) {
+            throw new RuntimeException("Only the creator can add collaborators");
         }
 
-        Set<User> collaborators = request.getCollaboratorIds().stream()
+        UUID currentTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
+        if (currentTenantId == null) {
+            throw new RuntimeException("Current user is not assigned to any tenant");
+        }
+
+        Set<User> newCollaborators = request.getCollaboratorIds().stream()
                 .map(uuid -> userRepository.findById(uuid)
-                        .orElseThrow(() -> new RuntimeException("User not found: "+uuid)))
+                        .orElseThrow(() -> new RuntimeException("User not found: " + uuid)))
+                .peek(user -> {
+                    if (user.getTenant() == null || !user.getTenant().getId().equals(currentTenantId)) {
+                        throw new RuntimeException("User " + user.getEmail() + " must belong to the same tenant");
+                    }
+                })
                 .collect(Collectors.toSet());
 
-        task.setCollaborators(collaborators);
+        task.getCollaborators().addAll(newCollaborators);
         taskRepository.save(task);
 
+        return toTaskResponseDTO(task);
+    }
+
+    @Override
+    @Transactional
+    public TaskResponseDTO removeCollaborators(String taskId, TaskCollaboratorRemoveDTO request) {
+        UUID id = UUID.fromString(taskId);
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+
+        User currentUser = userRepository.findByEmail(getCurrentUserEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!task.getCreator().equals(currentUser)) {
+            throw new RuntimeException("Only the creator can remove collaborators");
+        }
+
+        Set<User> toRemove = request.getCollaboratorIds().stream()
+                .map(uuid -> userRepository.findById(uuid)
+                        .orElseThrow(() -> new RuntimeException("User not found: " + uuid)))
+                .collect(Collectors.toSet());
+
+        task.getCollaborators().removeAll(toRemove);
+        taskRepository.save(task);
+
+        return toTaskResponseDTO(task);
+    }
+
+    private TaskResponseDTO toTaskResponseDTO(Task task) {
         return TaskResponseDTO.builder()
                 .id(task.getId())
                 .title(task.getTitle())
                 .description(task.getDescription())
                 .status(task.getStatus())
                 .creatorId(task.getCreator().getId())
-                .organizationId(task.getOrganization().getId())
+                .tenantId(task.getTenant().getId()) // update to tenantId if not already
                 .collaboratorIds(task.getCollaborators().stream()
                         .map(User::getId)
-                        .toList())
+                        .collect(Collectors.toSet()))
                 .build();
     }
+
+    private TaskResponseDTO findById(UUID taskId){
+        Optional<Task> task = taskRepository.findById(taskId);
+        if (task.isPresent()){
+            return toTaskResponseDTO(task.get());
+        }else{
+            throw new RuntimeException("Task not found with id: "+taskId);
+        }
+    }
+
 
     @Override
     @Transactional
@@ -179,31 +235,21 @@ public class TaskServiceImpl implements TaskService {
         User user = userRepository.findByEmail(currentEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if(!task.getCreator().equals(user)){
-            throw new RuntimeException("Only the creator can update the task details");
+        if (!task.getCreator().getId().equals(user.getId())) {
+            throw new RuntimeException("Only the creator can update task details.");
         }
 
-        if(request.getTitle() != null && !request.getTitle().isBlank()){
+        if (request.getTitle() != null && !request.getTitle().isBlank()) {
             task.setTitle(request.getTitle());
         }
 
-        if(request.getDescription() != null){
+        if (request.getDescription() != null) {
             task.setDescription(request.getDescription());
         }
 
-        taskRepository.save(task);
+        Task updatedTask = taskRepository.save(task);
 
-        return TaskResponseDTO.builder()
-                .id(task.getId())
-                .title(task.getTitle())
-                .description(task.getDescription())
-                .status(task.getStatus())
-                .creatorId(task.getCreator().getId())
-                .organizationId(task.getOrganization().getId())
-                .collaboratorIds(task.getCollaborators().stream()
-                        .map(User::getId)
-                        .toList())
-                .build();
+        return toTaskResponseDTO(updatedTask);
     }
 
     @Override

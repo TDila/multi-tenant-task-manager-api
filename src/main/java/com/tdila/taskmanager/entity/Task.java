@@ -1,24 +1,25 @@
 package com.tdila.taskmanager.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
 @Entity
+@Getter
+@Setter
 @Table(name = "tasks")
-@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString(exclude = {"creator", "tenant", "collaborators"})
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Task {
     @Id
     @GeneratedValue
+    @EqualsAndHashCode.Include
     private UUID id;
 
     @Column(nullable = false)
@@ -31,12 +32,10 @@ public class Task {
     private TaskStatus status;
 
     @ManyToOne
-    @JoinColumn(name = "creator_id")
     private User creator;
 
     @ManyToOne
-    @JoinColumn(name = "organization_id")
-    private Organization organization;
+    private Tenant tenant;
 
     @ManyToMany
     @JoinTable(
@@ -46,3 +45,4 @@ public class Task {
     )
     private Set<User> collaborators = new HashSet<>();
 }
+
