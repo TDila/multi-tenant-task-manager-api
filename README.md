@@ -43,19 +43,6 @@ A **multi-tenant task management system** built with **Spring Boot**, designed t
 
 ---
 
-## 📂 Project Structure
-src/main/java/com/tdila/taskmanager
-│── config/ # Security configuration
-│── controller/ # REST controllers
-│── dto/ # Data Transfer Objects
-│── entity/ # JPA Entities
-│── repository/ # Spring Data Repositories
-│── security/ # JWT & Security filters
-│── service/ # Service interfaces
-│── service/impl/ # Service implementations
-
----
-
 ## ⚡ Getting Started
 
 ### 1️. Clone the repository
@@ -66,13 +53,13 @@ cd taskmanager
 
 ## 2. Configure the database
 Update application.properties (or application.yml) with your PostgreSQL details:
-spring.datasource.url=jdbc:postgresql://localhost:5432/taskmanager
-spring.datasource.username=your_username
-spring.datasource.password=your_password
+- spring.datasource.url=jdbc:postgresql://localhost:5432/taskmanager
+- spring.datasource.username=your_username
+- spring.datasource.password=your_password
 
 ### JWT Secret & Expiration
-jwt.secret=your_secret_key
-jwt.expiration=3600000
+- jwt.secret=your_secret_key
+- jwt.expiration=3600000
 
 ## 3. Postman Collection
 You can view and test the API using the published Postman collection:
